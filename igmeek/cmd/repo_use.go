@@ -14,6 +14,7 @@ import (
 var repoUseCmd = &cobra.Command{
 	Use:   "use",
 	Short: "Select the current working repository",
+	Long:  "Switch the active repository for subsequent commands. If only one repository is configured, it is automatically selected. Otherwise, prompts for selection.",
 	RunE:  runRepoUse,
 }
 

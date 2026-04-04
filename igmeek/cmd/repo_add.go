@@ -16,6 +16,7 @@ import (
 var repoAddCmd = &cobra.Command{
 	Use:   "add [owner/repo]",
 	Short: "Add a repository configuration",
+	Long:  "Add a GitHub repository to the configuration. Accepts an 'owner/repo' argument, or prompts interactively if omitted. Verifies repository access before saving. Automatically sets as current repo if none is selected.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  runRepoAdd,
 }

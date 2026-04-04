@@ -15,6 +15,7 @@ import (
 var labelAddCmd = &cobra.Command{
 	Use:   "add <tags>",
 	Short: "Create repository labels",
+	Long:  "Create one or more labels in the configured repository. Labels are created with the default color (ededed). Multiple labels can be specified as separate arguments.",
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  runLabelAdd,
 }

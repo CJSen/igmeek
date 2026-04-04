@@ -14,6 +14,7 @@ import (
 var repoDelCmd = &cobra.Command{
 	Use:   "del",
 	Short: "Remove a repository configuration",
+	Long:  "Remove a repository from the configuration and delete its local data directory (index and tag cache). Prompts for selection if multiple repositories are configured.",
 	RunE:  runRepoDel,
 }
 

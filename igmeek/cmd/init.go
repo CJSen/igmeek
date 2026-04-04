@@ -13,6 +13,7 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize igmeek with your GitHub token",
+	Long:  "Interactively prompt for a GitHub Personal Access Token and save it to the global configuration file. The token requires the 'repo' scope. Can also be set via the IMGEEK_GITHUB_TOKEN environment variable.",
 	RunE:  runInit,
 }
 

@@ -15,6 +15,7 @@ import (
 var delCmd = &cobra.Command{
 	Use:   "del <num>",
 	Short: "Close an issue without deleting local file",
+	Long:  "Close a GitHub Issue by number. The local Markdown file and index entry are preserved, only the issue state is changed to 'closed'. Use 'igmeek undel <num>' to reopen.",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runDel,
 }

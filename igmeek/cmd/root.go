@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"os"
 
 	"github.com/CJSen/igmeek/internal/config"
@@ -29,6 +30,10 @@ for Gmeek's label-driven publishing workflow.`,
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		var tokenErr *TokenError
+		if errors.As(err, &tokenErr) {
+			os.Exit(ExitAuthError)
+		}
 		os.Exit(ExitGeneralError)
 	}
 }

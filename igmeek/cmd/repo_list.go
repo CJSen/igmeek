@@ -10,6 +10,7 @@ import (
 var repoListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List configured repositories",
+	Long:  "Display all configured repositories, marking the currently active one with an asterisk.",
 	RunE:  runRepoList,
 }
 

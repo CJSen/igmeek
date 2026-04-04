@@ -14,6 +14,7 @@ import (
 var labelListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all repository labels",
+	Long:  "Fetch and display all labels from the configured repository. Also updates the local tag cache.",
 	RunE:  runLabelList,
 }
 

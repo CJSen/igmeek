@@ -18,8 +18,18 @@ import (
 var updateCmd = &cobra.Command{
 	Use:   "update <file|num> [file]",
 	Short: "Update an existing issue",
-	Args:  cobra.RangeArgs(1, 2),
-	RunE:  runUpdate,
+	Long: `Update an existing issue's body and/or labels.
+
+Usage:
+  igmeek update <file>          Update issue linked to this file
+  igmeek update <num> <file>    Update issue #num with file content
+
+Label options (can be combined with file update):
+  --add-tag <tags>              Add labels (comma-separated)
+  --remove-tag <tags>           Remove labels (comma-separated)
+  --set-tag <tags>              Replace all labels`,
+	Args: cobra.RangeArgs(1, 2),
+	RunE: runUpdate,
 }
 
 var (

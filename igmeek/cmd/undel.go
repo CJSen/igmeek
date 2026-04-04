@@ -15,6 +15,7 @@ import (
 var undelCmd = &cobra.Command{
 	Use:   "undel <num>",
 	Short: "Reopen a closed issue",
+	Long:  "Reopen a previously closed GitHub Issue by number. Updates the local index state to 'open'.",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runUndel,
 }

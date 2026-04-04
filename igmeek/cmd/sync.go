@@ -13,6 +13,7 @@ import (
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Sync all remote issues and labels to local cache",
+	Long:  "Fetch all open and closed issues from the configured repository and update the local index (issues_num_name.json) and tag cache (tags.json). This is a full sync that overwrites local index data.",
 	RunE:  runSync,
 }
 

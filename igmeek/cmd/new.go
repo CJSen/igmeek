@@ -16,6 +16,7 @@ import (
 var newCmd = &cobra.Command{
 	Use:   "new <file>",
 	Short: "Create a new issue from a markdown file",
+	Long:  "Create a new GitHub Issue from a local Markdown file. The file's first H1 heading becomes the issue title, and the rest becomes the body. Requires --tag (at least one label) or --notag (create without labels, useful for drafts).",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runNew,
 }
