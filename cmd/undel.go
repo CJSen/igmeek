@@ -5,26 +5,26 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/CJSen/igmeek/internal/api"
-	"github.com/CJSen/igmeek/internal/config"
-	"github.com/CJSen/igmeek/internal/index"
-	"github.com/CJSen/igmeek/internal/sync"
+	"github.com/CJSen/igmeek/cli/internal/api"
+	"github.com/CJSen/igmeek/cli/internal/config"
+	"github.com/CJSen/igmeek/cli/internal/index"
+	"github.com/CJSen/igmeek/cli/internal/sync"
 	"github.com/spf13/cobra"
 )
 
-var delCmd = &cobra.Command{
-	Use:   "del <num>",
-	Short: "Close an issue without deleting local file",
-	Long:  "Close a GitHub Issue by number. The local Markdown file and index entry are preserved, only the issue state is changed to 'closed'. Use 'igmeek undel <num>' to reopen.",
+var undelCmd = &cobra.Command{
+	Use:   "undel <num>",
+	Short: "Reopen a closed issue",
+	Long:  "Reopen a previously closed GitHub Issue by number. Updates the local index state to 'open'.",
 	Args:  cobra.ExactArgs(1),
-	RunE:  runDel,
+	RunE:  runUndel,
 }
 
 func init() {
-	rootCmd.AddCommand(delCmd)
+	rootCmd.AddCommand(undelCmd)
 }
 
-func runDel(cmd *cobra.Command, args []string) error {
+func runUndel(cmd *cobra.Command, args []string) error {
 	num, err := strconv.Atoi(args[0])
 	if err != nil {
 		return fmt.Errorf("invalid issue number: %s", args[0])
@@ -54,7 +54,7 @@ func runDel(cmd *cobra.Command, args []string) error {
 	}
 
 	client := api.NewClient(GetToken())
-	issue, err := client.CloseIssue(context.Background(), owner, repo, num)
+	_, err = client.ReopenIssue(context.Background(), owner, repo, num)
 	if err != nil {
 		return err
 	}
@@ -62,16 +62,12 @@ func runDel(cmd *cobra.Command, args []string) error {
 	entries, _ := issueIndex.Load()
 	for i, e := range entries {
 		if e.IssueNumber == num {
-			entries[i].State = "closed"
-			if issue.ClosedAt != nil {
-				t := issue.ClosedAt.Time
-				entries[i].ClosedAt = &t
-			}
+			entries[i].State = "open"
 			break
 		}
 	}
 	issueIndex.Save(entries)
 
-	fmt.Printf("Closed issue #%d: %s\n", num, entry.Title)
+	fmt.Printf("Reopened issue #%d: %s\n", num, entry.Title)
 	return nil
 }

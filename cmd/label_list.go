@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CJSen/igmeek/internal/api"
-	"github.com/CJSen/igmeek/internal/config"
-	"github.com/CJSen/igmeek/internal/index"
-	"github.com/CJSen/igmeek/internal/sync"
+	"github.com/CJSen/igmeek/cli/internal/api"
+	"github.com/CJSen/igmeek/cli/internal/config"
+	"github.com/CJSen/igmeek/cli/internal/index"
+	"github.com/CJSen/igmeek/cli/internal/sync"
 	"github.com/spf13/cobra"
 )
 

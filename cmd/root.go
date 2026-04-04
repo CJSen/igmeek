@@ -4,7 +4,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/CJSen/igmeek/internal/config"
+	"github.com/CJSen/igmeek/cli/internal/config"
 	"github.com/spf13/cobra"
 )
 

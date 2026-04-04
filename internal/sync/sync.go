@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CJSen/igmeek/internal/api"
-	"github.com/CJSen/igmeek/internal/index"
+	"github.com/CJSen/igmeek/cli/internal/api"
+	"github.com/CJSen/igmeek/cli/internal/index"
 	"github.com/google/go-github/v68/github"
 )
 

@@ -1,4 +1,4 @@
-module github.com/CJSen/igmeek
+module github.com/CJSen/igmeek/cli
 
 go 1.26.1
 

@@ -140,9 +140,9 @@
 ## 五、项目结构
 
 ```
-igmeek/                          # 项目根目录
+.                                # 项目根目录（也是 CLI 代码根目录）
 ├── main.go                      # 入口，调用 cmd.Execute()
-├── go.mod                       # github.com/CJSen/igmeek
+├── go.mod                       # github.com/CJSen/igmeek/cli
 ├── go.sum
 ├── .gitignore
 ├── cmd/
@@ -178,7 +178,11 @@ igmeek/                          # 项目根目录
 │       ├── sync.go              # 全量同步逻辑 + 数据转换
 │       ├── sync_test.go         # 2 tests PASS
 │       └── parse.go             # ParseOwnerRepo 工具函数
-└── README.md                    # 完整使用说明文档
+├── README.md                    # 完整使用说明文档
+└── docs/
+    ├── igmeek-cli-history.md    # 项目上下文与进度历史
+    ├── gmeek-need-doc.md        # 需求文档
+    └── superpowers/             # 设计与计划
 ```
 
 ---
@@ -218,15 +222,14 @@ igmeek/                          # 项目根目录
 - Gmeek 源码：`/Users/css/dev/igmeek/Gmeek/`（分支 `myself-use`）
 
 ### 需求文档
-- `/Users/css/dev/igmeek/gmeek-need-doc.md`
+- `/Users/css/dev/igmeek/docs/gmeek-need-doc.md`
 
 ### 设计与计划
 - Spec: `docs/superpowers/specs/2026-04-04-igmeek-cli-design.md`
 - Plan: `docs/superpowers/plans/2026-04-04-igmeek-cli-implementation.md`
 
 ### 工作区
-- `/Users/css/dev/igmeek/`
-- CLI 代码: `/Users/css/dev/igmeek/igmeek/`
+- `/Users/css/dev/igmeek/`（也是 CLI 代码根目录）
 
 ---
 
