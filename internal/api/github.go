@@ -61,13 +61,16 @@ func (c *Client) CreateIssue(ctx context.Context, owner, repo, title, body strin
 	return issue, nil
 }
 
-func (c *Client) EditIssue(ctx context.Context, owner, repo string, number int, title, body string) (*github.Issue, error) {
+func (c *Client) EditIssue(ctx context.Context, owner, repo string, number int, title, body string, labels []string, replaceLabels bool) (*github.Issue, error) {
 	issueReq := &github.IssueRequest{}
 	if title != "" {
 		issueReq.Title = github.String(title)
 	}
 	if body != "" {
 		issueReq.Body = github.String(body)
+	}
+	if replaceLabels {
+		issueReq.Labels = &labels
 	}
 
 	issue, _, err := c.gh.Issues.Edit(ctx, owner, repo, number, issueReq)

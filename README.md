@@ -191,7 +191,9 @@ igmeek update post.md --set-tag tag1,tag2
 - 如果同名文件匹配到多个 issue，会提示候选 issue，并要求使用 `igmeek update <num> <file>`
 - 如果找不到映射，会提示先执行 `sync` 或显式传入 issue 编号
 - 更新正文时，标题优先取 Markdown 首个一级标题 `# `；如果没有一级标题，则退回文件名
+- `--add-tag`、`--remove-tag`、`--set-tag` 都支持英文逗号 `,` 和中文逗号 `，`
 - 标签修改基于远端当前标签集合进行增删改
+- 当同时更新正文和标签时，会一次性把最终内容和最终标签一起提交，避免 Gmeek workflow 在中间状态触发
 
 ### 7. 关闭或恢复 Issue
 
@@ -260,8 +262,8 @@ igmeek repo del
 | `igmeek sync` | 全量同步当前仓库的 issues 与 labels |
 | `igmeek new <file> --tag <tags>` | 从 Markdown 文件创建带标签的 issue；缺失标签时直接报错且不创建 |
 | `igmeek new <file> --notag` | 从 Markdown 文件创建不带标签的 issue |
-| `igmeek update <file>` | 按本地文件映射更新 issue |
-| `igmeek update <num> <file>` | 按 issue 编号更新指定 issue |
+| `igmeek update <file>` | 按本地文件映射一次性更新 issue 的正文和标签 |
+| `igmeek update <num> <file>` | 按 issue 编号一次性更新指定 issue 的正文和标签 |
 | `igmeek del <num>` | 关闭 issue |
 | `igmeek undel <num>` | 重新打开 issue |
 | `igmeek repo ...` | 管理仓库配置 |

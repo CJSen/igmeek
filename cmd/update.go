@@ -127,39 +127,16 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		title = mdFile.Title
 	}
 
-	issue, err := client.EditIssue(context.Background(), owner, repo, issueNum, title, body)
+	remoteIssue, _, err := client.GetIssue(context.Background(), owner, repo, issueNum)
+	if err != nil {
+		return fmt.Errorf("failed to fetch issue #%d: %w", issueNum, err)
+	}
+
+	finalLabels, replaceLabels := resolveUpdatedLabels(remoteIssue, updateAddTag, updateRemoveTag, updateSetTag)
+
+	issue, err := client.EditIssue(context.Background(), owner, repo, issueNum, title, body, finalLabels, replaceLabels)
 	if err != nil {
 		return err
-	}
-
-	if updateAddTag != "" {
-		tags := parseTags(updateAddTag)
-		allTags := labelsAfterAdd(issue, tags)
-		allTags = uniqueStrings(allTags)
-		_, err = client.ReplaceLabels(context.Background(), owner, repo, issueNum, allTags)
-		if err != nil {
-			return fmt.Errorf("failed to add labels: %w", err)
-		}
-		issue.Labels = makeLabelSlice(allTags)
-	}
-
-	if updateRemoveTag != "" {
-		tags := parseTags(updateRemoveTag)
-		remaining := labelsAfterRemove(issue, tags)
-		_, err = client.ReplaceLabels(context.Background(), owner, repo, issueNum, remaining)
-		if err != nil {
-			return fmt.Errorf("failed to remove labels: %w", err)
-		}
-		issue.Labels = makeLabelSlice(remaining)
-	}
-
-	if updateSetTag != "" {
-		tags := parseTags(updateSetTag)
-		_, err = client.ReplaceLabels(context.Background(), owner, repo, issueNum, tags)
-		if err != nil {
-			return fmt.Errorf("failed to set labels: %w", err)
-		}
-		issue.Labels = makeLabelSlice(tags)
 	}
 
 	entries, err := issueIndex.Load()
@@ -221,6 +198,28 @@ func makeLabelSlice(names []string) []*github.Label {
 func labelsAfterAdd(issue *github.Issue, add []string) []string {
 	labels := append(issueLabelNames(issue), add...)
 	return uniqueStrings(labels)
+}
+
+func resolveUpdatedLabels(issue *github.Issue, addRaw, removeRaw, setRaw string) ([]string, bool) {
+	replaceLabels := addRaw != "" || removeRaw != "" || setRaw != ""
+	if !replaceLabels {
+		return nil, false
+	}
+
+	current := makeLabelSlice(issueLabelNames(issue))
+	working := &github.Issue{Labels: current}
+
+	if addRaw != "" {
+		working.Labels = makeLabelSlice(labelsAfterAdd(working, parseTags(addRaw)))
+	}
+	if removeRaw != "" {
+		working.Labels = makeLabelSlice(labelsAfterRemove(working, parseTags(removeRaw)))
+	}
+	if setRaw != "" {
+		working.Labels = makeLabelSlice(parseTags(setRaw))
+	}
+
+	return issueLabelNames(working), true
 }
 
 func labelsAfterRemove(issue *github.Issue, remove []string) []string {

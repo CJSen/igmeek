@@ -39,6 +39,36 @@ func TestLabelsAfterRemoveUsesRemoteIssueLabels(t *testing.T) {
 	}
 }
 
+func TestResolveUpdatedLabelsReturnsNilWhenNoFlags(t *testing.T) {
+	issue := &github.Issue{Labels: []*github.Label{{Name: github.String("remote")}}}
+
+	got, replace := resolveUpdatedLabels(issue, "", "", "")
+	if replace {
+		t.Fatal("expected replace=false")
+	}
+	if got != nil {
+		t.Fatalf("expected nil labels, got %v", got)
+	}
+}
+
+func TestResolveUpdatedLabelsAppliesFlagsInCurrentOrder(t *testing.T) {
+	issue := &github.Issue{
+		Labels: []*github.Label{
+			{Name: github.String("remote")},
+			{Name: github.String("shared")},
+		},
+	}
+
+	got, replace := resolveUpdatedLabels(issue, "new，shared", "remote", "final,done")
+	want := []string{"final", "done"}
+	if !replace {
+		t.Fatal("expected replace=true")
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
 func TestFormatIssueEntriesIncludesNumberTitleAndPath(t *testing.T) {
 	formatted := formatIssueEntries([]index.IssueEntry{{
 		IssueNumber: 12,
