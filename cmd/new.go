@@ -10,13 +10,14 @@ import (
 	"github.com/CJSen/igmeek/cli/internal/index"
 	"github.com/CJSen/igmeek/cli/internal/markdown"
 	"github.com/CJSen/igmeek/cli/internal/sync"
+	"github.com/google/go-github/v68/github"
 	"github.com/spf13/cobra"
 )
 
 var newCmd = &cobra.Command{
 	Use:   "new <file>",
 	Short: "Create a new issue from a markdown file",
-	Long:  "Create a new GitHub Issue from a local Markdown file. The file's first H1 heading becomes the issue title, and the rest becomes the body. Requires --tag (at least one label) or --notag (create without labels, useful for drafts).",
+	Long:  "Create a new GitHub Issue from a local Markdown file. Requires --tag (at least one label) or --notag (create without labels, useful for drafts).",
 	Args:  cobra.ExactArgs(1),
 	RunE:  runNew,
 }
@@ -38,18 +39,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	if !newNoTag {
-		tags := strings.Split(newTags, ",")
-		var cleaned []string
-		for _, t := range tags {
-			t = strings.TrimSpace(t)
-			if t != "" {
-				cleaned = append(cleaned, t)
-			}
-		}
+		cleaned := parseTagList(newTags)
 		if len(cleaned) == 0 {
 			return fmt.Errorf("must specify at least one tag with --tag")
 		}
-		newTags = strings.Join(cleaned, ",")
 	}
 
 	globalDir := config.GetGlobalDataDir()
@@ -74,23 +67,27 @@ func runNew(cmd *cobra.Command, args []string) error {
 	issueTitle := issueTitleForNew(mdFile.AbsPath)
 
 	client := api.NewClient(GetToken())
-	issue, err := client.CreateIssue(context.Background(), owner, repo, issueTitle, mdFile.Content)
+	var labels []string
+	if !newNoTag {
+		labels = parseTagList(newTags)
+		remoteLabels, err := client.ListLabels(context.Background(), owner, repo)
+		if err != nil {
+			return fmt.Errorf("failed to list labels: %w", err)
+		}
+
+		missing := missingLabelNames(labels, remoteLabels)
+		if len(missing) > 0 {
+			return fmt.Errorf("labels do not exist in %s: %s. Create them first with 'igmeek label add %s'", cfg.CurrentRepo, strings.Join(missing, ", "), strings.Join(missing, ","))
+		}
+	}
+
+	issue, err := client.CreateIssue(context.Background(), owner, repo, issueTitle, mdFile.Content, labels)
 	if err != nil {
 		return err
 	}
 
 	repoDir := config.GetRepoDir(globalDir, cfg.CurrentRepo)
 	issueIndex := index.NewIssueIndex(repoDir)
-
-	var labels []string
-	if !newNoTag {
-		labelList := strings.Split(newTags, ",")
-		_, err = client.AddLabels(context.Background(), owner, repo, issue.GetNumber(), labelList)
-		if err != nil {
-			return fmt.Errorf("failed to add labels: %w", err)
-		}
-		labels = labelList
-	}
 
 	entries, _ := issueIndex.Load()
 	newEntry := index.IssueEntry{
@@ -122,4 +119,19 @@ func runNew(cmd *cobra.Command, args []string) error {
 
 func issueTitleForNew(absPath string) string {
 	return markdown.ExtractTitleFromFileName(absPath)
+}
+
+func missingLabelNames(wanted []string, remoteLabels []*github.Label) []string {
+	existing := make(map[string]struct{}, len(remoteLabels))
+	for _, label := range remoteLabels {
+		existing[label.GetName()] = struct{}{}
+	}
+
+	var missing []string
+	for _, label := range wanted {
+		if _, ok := existing[label]; !ok {
+			missing = append(missing, label)
+		}
+	}
+	return uniqueStrings(missing)
 }

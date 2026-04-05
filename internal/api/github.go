@@ -44,10 +44,13 @@ func (c *Client) ListIssues(ctx context.Context, owner, repo string) ([]*github.
 	return allIssues, nil
 }
 
-func (c *Client) CreateIssue(ctx context.Context, owner, repo, title, body string) (*github.Issue, error) {
+func (c *Client) CreateIssue(ctx context.Context, owner, repo, title, body string, labels []string) (*github.Issue, error) {
 	issueReq := &github.IssueRequest{
 		Title: github.String(title),
 		Body:  github.String(body),
+	}
+	if len(labels) > 0 {
+		issueReq.Labels = &labels
 	}
 
 	issue, _, err := c.gh.Issues.Create(ctx, owner, repo, issueReq)

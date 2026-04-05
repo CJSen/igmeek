@@ -44,13 +44,13 @@ func runLabelAdd(cmd *cobra.Command, args []string) error {
 	tagCache := index.NewTagCache(repoDir)
 	client := api.NewClient(GetToken())
 
-	var created []string
-	for _, name := range args {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
+	tagNames := parseTagList(args...)
+	if len(tagNames) == 0 {
+		return fmt.Errorf("must specify at least one label")
+	}
 
+	var created []string
+	for _, name := range tagNames {
 		_, err := client.CreateLabel(context.Background(), owner, repo, name)
 		if err != nil {
 			return fmt.Errorf("failed to create label '%s': %w", name, err)

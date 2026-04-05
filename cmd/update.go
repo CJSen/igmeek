@@ -195,14 +195,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func parseTags(s string) []string {
-	var result []string
-	for _, t := range strings.Split(s, ",") {
-		t = strings.TrimSpace(t)
-		if t != "" {
-			result = append(result, t)
-		}
-	}
-	return result
+	return parseTagList(s)
 }
 
 func uniqueStrings(s []string) []string {
