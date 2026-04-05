@@ -1,3 +1,5 @@
 igmeek
 my-notes.txt
 .worktrees/
+docs/manual-tests
+.DS_Store
