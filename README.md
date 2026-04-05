@@ -41,6 +41,16 @@ go build -o igmeek .
 
 构建完成后，可以把二进制加入 `PATH`，或直接在当前目录执行。
 
+### 从 Release 下载
+
+仓库在推送 tag 时会自动创建 GitHub Release，并生成以下平台产物：
+
+- macOS `amd64` / `arm64`
+- Linux `amd64` / `arm64`
+- Windows `amd64` / `arm64`
+
+发布的可执行文件统一命名为 `igmeek`，Windows 包内为 `igmeek.exe`。
+
 ## GitHub Token 配置
 
 `igmeek` 需要 GitHub Personal Access Token 才能访问仓库、读写 Issues 和 Labels。
