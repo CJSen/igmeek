@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var globalDataDirFunc = config.GetGlobalDataDir
+
 var syncCmd = &cobra.Command{
 	Use:   "sync",
 	Short: "Sync all remote issues and labels to local cache",
@@ -22,7 +24,7 @@ func init() {
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
-	globalDir := config.GetGlobalDataDir()
+	globalDir := globalDataDirFunc()
 	cfg, err := config.LoadConfig(config.ConfigPath(globalDir))
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
@@ -32,19 +34,33 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no repository configured. Run 'igmeek repo add' first")
 	}
 
-	owner, repo, err := sync.ParseOwnerRepo(cfg.CurrentRepo)
+	result, _, err := runSyncForRepoFunc(cmd, cfg.CurrentRepo, "")
 	if err != nil {
 		return err
 	}
 
-	repoDir := config.GetRepoDir(globalDir, cfg.CurrentRepo)
-	client := api.NewClient(GetToken())
+	fmt.Fprintf(cmd.OutOrStdout(), "Synced %d issues, %d labels from %s\n", result.IssuesCount, result.LabelsCount, cfg.CurrentRepo)
+	return nil
+}
+
+func runSyncForRepo(fullName string, token string) (*sync.SyncResult, string, error) {
+	globalDir := globalDataDirFunc()
+
+	owner, repo, err := sync.ParseOwnerRepo(fullName)
+	if err != nil {
+		return nil, "", err
+	}
+
+	repoDir := config.GetRepoDir(globalDir, fullName)
+	if token == "" {
+		token = GetToken()
+	}
+	client := api.NewClient(token)
 
 	result, err := sync.SyncAll(context.Background(), client, owner, repo, repoDir)
 	if err != nil {
-		return err
+		return nil, "", err
 	}
 
-	fmt.Printf("Synced %d issues, %d labels from %s\n", result.IssuesCount, result.LabelsCount, cfg.CurrentRepo)
-	return nil
+	return result, repoDir, nil
 }

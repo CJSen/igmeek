@@ -3,10 +3,14 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var ownerRepoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 type GlobalConfig struct {
 	Token       string   `json:"token"`
@@ -18,6 +22,45 @@ type RepoConfig struct {
 	Owner    string `json:"owner"`
 	Repo     string `json:"repo"`
 	FullName string `json:"full_name"`
+}
+
+func NormalizeRepoInput(input string) (string, error) {
+	trimmed := strings.TrimSpace(input)
+	if isOwnerRepo(trimmed) {
+		return trimmed, nil
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("invalid repo input: %q", input)
+	}
+	if (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host != "github.com" {
+		return "", fmt.Errorf("invalid repo input: %q", input)
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", fmt.Errorf("invalid repo input: %q", input)
+	}
+
+	fullName := strings.Trim(parsed.Path, "/")
+	if !isOwnerRepo(fullName) {
+		return "", fmt.Errorf("invalid repo input: %q", input)
+	}
+
+	return fullName, nil
+}
+
+func (c *GlobalConfig) AddRepo(fullName string) {
+	for _, existing := range c.Repos {
+		if existing == fullName {
+			return
+		}
+	}
+
+	c.Repos = append(c.Repos, fullName)
+}
+
+func isOwnerRepo(value string) bool {
+	return ownerRepoPattern.MatchString(value)
 }
 
 func GetGlobalDataDir() string {

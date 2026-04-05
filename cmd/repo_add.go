@@ -4,14 +4,17 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/CJSen/igmeek/cli/internal/api"
 	"github.com/CJSen/igmeek/cli/internal/config"
-	"github.com/CJSen/igmeek/cli/internal/sync"
 	"github.com/spf13/cobra"
 )
+
+var verifyRepoAccessFunc = func(ctx context.Context, token, owner, repo string) error {
+	client := api.NewClient(token)
+	return client.VerifyRepo(ctx, owner, repo)
+}
 
 var repoAddCmd = &cobra.Command{
 	Use:   "add [owner/repo]",
@@ -29,10 +32,10 @@ func runRepoAdd(cmd *cobra.Command, args []string) error {
 	var fullName string
 
 	if len(args) > 0 {
-		fullName = args[0]
+		fullName = strings.TrimSpace(args[0])
 	} else {
-		fmt.Print("Enter repository (owner/repo): ")
-		reader := bufio.NewReader(os.Stdin)
+		fmt.Fprint(cmd.OutOrStdout(), "Enter repository (owner/repo or GitHub URL): ")
+		reader := bufio.NewReader(cmd.InOrStdin())
 		input, err := reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
@@ -40,19 +43,20 @@ func runRepoAdd(cmd *cobra.Command, args []string) error {
 		fullName = strings.TrimSpace(input)
 	}
 
-	owner, repo, err := sync.ParseOwnerRepo(fullName)
+	fullName, err := config.NormalizeRepoInput(fullName)
 	if err != nil {
 		return err
 	}
+	parts := strings.SplitN(fullName, "/", 2)
+	owner, repo := parts[0], parts[1]
 
-	globalDir := config.GetGlobalDataDir()
+	globalDir := globalDataDirFunc()
 	cfg, err := config.LoadConfig(config.ConfigPath(globalDir))
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	client := api.NewClient(GetToken())
-	if err := client.VerifyRepo(context.Background(), owner, repo); err != nil {
+	if err := verifyRepoAccessFunc(context.Background(), GetToken(), owner, repo); err != nil {
 		return fmt.Errorf("cannot access repository: %w", err)
 	}
 
@@ -67,16 +71,7 @@ func runRepoAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save repo config: %w", err)
 	}
 
-	found := false
-	for _, r := range cfg.Repos {
-		if r == fullName {
-			found = true
-			break
-		}
-	}
-	if !found {
-		cfg.Repos = append(cfg.Repos, fullName)
-	}
+	cfg.AddRepo(fullName)
 
 	if cfg.CurrentRepo == "" {
 		cfg.CurrentRepo = fullName
@@ -86,6 +81,11 @@ func runRepoAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save global config: %w", err)
 	}
 
-	fmt.Printf("Added repository: %s\n", fullName)
+	fmt.Fprintf(cmd.OutOrStdout(), "Added repository: %s\n", fullName)
+	result, _, err := runSyncForRepoFunc(cmd, fullName, "")
+	if err != nil {
+		return fmt.Errorf("repository was added, but sync failed. You can retry with 'igmeek sync': %w", err)
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Synced %d issues, %d labels from %s\n", result.IssuesCount, result.LabelsCount, fullName)
 	return nil
 }

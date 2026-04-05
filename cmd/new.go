@@ -71,9 +71,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	issueTitle := issueTitleForNew(mdFile.AbsPath)
 
 	client := api.NewClient(GetToken())
-	issue, err := client.CreateIssue(context.Background(), owner, repo, mdFile.Title, mdFile.Content)
+	issue, err := client.CreateIssue(context.Background(), owner, repo, issueTitle, mdFile.Content)
 	if err != nil {
 		return err
 	}
@@ -117,4 +118,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Created issue #%d: %s\n", issue.GetNumber(), issue.GetTitle())
 	fmt.Printf("URL: %s\n", issue.GetHTMLURL())
 	return nil
+}
+
+func issueTitleForNew(absPath string) string {
+	return markdown.ExtractTitleFromFileName(absPath)
 }

@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -28,6 +31,15 @@ type TagEntry struct {
 
 type IssueIndex struct {
 	repoDir string
+	lastErr error
+}
+
+type FileMatchResult struct {
+	Found       bool
+	Entry       IssueEntry
+	Ambiguous   bool
+	Candidates  []IssueEntry
+	Suggestions []IssueEntry
 }
 
 type TagCache struct {
@@ -36,6 +48,10 @@ type TagCache struct {
 
 func NewIssueIndex(repoDir string) *IssueIndex {
 	return &IssueIndex{repoDir: repoDir}
+}
+
+func (i *IssueIndex) LastError() error {
+	return i.lastErr
 }
 
 func NewTagCache(repoDir string) *TagCache {
@@ -75,8 +91,10 @@ func (i *IssueIndex) Load() ([]IssueEntry, error) {
 }
 
 func (i *IssueIndex) FindByNumber(number int) (IssueEntry, bool) {
+	i.lastErr = nil
 	issues, err := i.Load()
 	if err != nil {
+		i.lastErr = err
 		return IssueEntry{}, false
 	}
 
@@ -89,19 +107,156 @@ func (i *IssueIndex) FindByNumber(number int) (IssueEntry, bool) {
 	return IssueEntry{}, false
 }
 
-func (i *IssueIndex) FindByFilePath(path string) (IssueEntry, bool) {
-	issues, err := i.Load()
+func (i *IssueIndex) FindByFilePath(path string) (IssueEntry, bool, error) {
+	i.lastErr = nil
+	result, err := i.FindFileMatches(path)
 	if err != nil {
-		return IssueEntry{}, false
+		i.lastErr = err
+		return IssueEntry{}, false, err
+	}
+	if !result.Found {
+		return IssueEntry{}, false, nil
 	}
 
+	return result.Entry, true, nil
+}
+
+func (i *IssueIndex) FindFileMatches(input string) (FileMatchResult, error) {
+	i.lastErr = nil
+	issues, err := i.Load()
+	if err != nil {
+		i.lastErr = err
+		return FileMatchResult{}, err
+	}
+
+	normalizedInput := normalizeMatchPath(input)
 	for _, issue := range issues {
-		if issue.FilePath == path {
-			return issue, true
+		if normalizeMatchPath(issue.FilePath) == normalizedInput {
+			return FileMatchResult{Found: true, Entry: issue}, nil
 		}
 	}
 
-	return IssueEntry{}, false
+	base := matchBase(normalizedInput)
+	var candidates []IssueEntry
+	for _, issue := range issues {
+		if matchBase(normalizeMatchPath(issue.FilePath)) == base {
+			candidates = append(candidates, issue)
+		}
+	}
+
+	if len(candidates) == 1 {
+		return FileMatchResult{Found: true, Entry: candidates[0]}, nil
+	}
+	if len(candidates) > 1 {
+		return FileMatchResult{Ambiguous: true, Candidates: candidates}, nil
+	}
+
+	return FileMatchResult{Suggestions: findSuggestions(base, issues)}, nil
+}
+
+func normalizeMatchPath(input string) string {
+	normalized := strings.TrimSpace(input)
+	normalized = strings.ReplaceAll(normalized, "\\", "/")
+	normalized = path.Clean(normalized)
+	if normalized == "." {
+		return ""
+	}
+	return normalized
+}
+
+func matchBase(input string) string {
+	if input == "" {
+		return ""
+	}
+	return path.Base(input)
+}
+
+func findSuggestions(targetBase string, issues []IssueEntry) []IssueEntry {
+	if targetBase == "" {
+		return nil
+	}
+
+	type scoredIssue struct {
+		entry    IssueEntry
+		distance int
+	}
+
+	limit := len(targetBase) / 3
+	if limit < 2 {
+		limit = 2
+	}
+
+	var scored []scoredIssue
+	for _, issue := range issues {
+		distance := levenshteinDistance(targetBase, matchBase(normalizeMatchPath(issue.FilePath)))
+		if distance <= limit {
+			scored = append(scored, scoredIssue{entry: issue, distance: distance})
+		}
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].distance != scored[j].distance {
+			return scored[i].distance < scored[j].distance
+		}
+		return scored[i].entry.FilePath < scored[j].entry.FilePath
+	})
+
+	if len(scored) > 3 {
+		scored = scored[:3]
+	}
+
+	suggestions := make([]IssueEntry, 0, len(scored))
+	for _, item := range scored {
+		suggestions = append(suggestions, item.entry)
+	}
+	return suggestions
+}
+
+func levenshteinDistance(a, b string) int {
+	if a == b {
+		return 0
+	}
+	if len(a) == 0 {
+		return len(b)
+	}
+	if len(b) == 0 {
+		return len(a)
+	}
+
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+
+	for i := 1; i <= len(a); i++ {
+		curr := make([]int, len(b)+1)
+		curr[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 0
+			if a[i-1] != b[j-1] {
+				cost = 1
+			}
+
+			curr[j] = minInt(
+				prev[j]+1,
+				curr[j-1]+1,
+				prev[j-1]+cost,
+			)
+		}
+		prev = curr
+	}
+
+	return prev[len(b)]
+}
+
+func minInt(values ...int) int {
+	min := values[0]
+	for _, value := range values[1:] {
+		if value < min {
+			min = value
+		}
+	}
+	return min
 }
 
 func (t *TagCache) filePath() string {

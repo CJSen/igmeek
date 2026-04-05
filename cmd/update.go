@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -73,22 +74,44 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("first argument must be an issue number when providing two arguments")
 		}
+		absPath, err := markdown.NormalizePath(args[1])
+		if err != nil {
+			return err
+		}
 		issueNum = num
-		filePath = args[1]
+		filePath = absPath
 	} else {
 		absPath, err := markdown.NormalizePath(args[0])
 		if err != nil {
 			return err
 		}
-		entry, ok := issueIndex.FindByFilePath(absPath)
-		if !ok {
-			return fmt.Errorf("issue not found for file: %s. Run 'igmeek sync' to refresh index", absPath)
+		result, err := issueIndex.FindFileMatches(absPath)
+		if err != nil {
+			return err
 		}
-		issueNum = entry.IssueNumber
+		if result.Ambiguous {
+			message := "存在多个同名文件，请使用 igmeek update <num> <file>"
+			if len(result.Candidates) > 0 {
+				message += "\n候选 issue：\n" + formatIssueEntries(result.Candidates)
+			}
+			message += "\n如果你是要新增同名文章，请使用 igmeek new <file>；否则请选择一个要更新的 issue 编号。"
+			return errors.New(message)
+		}
+		if !result.Found {
+			message := "未找到对应文件名的 issue 映射，先执行 sync 或显式传入 issue_number"
+			if len(result.Suggestions) > 0 {
+				message += "\n相近 issue：\n" + formatIssueEntries(result.Suggestions)
+			}
+			return errors.New(message)
+		}
+		issueNum = result.Entry.IssueNumber
 		filePath = absPath
 	}
 
 	_, found := issueIndex.FindByNumber(issueNum)
+	if err := issueIndex.LastError(); err != nil {
+		return err
+	}
 	if !found {
 		return fmt.Errorf("issue #%d not found in index. Run 'igmeek sync' to refresh", issueNum)
 	}
@@ -111,8 +134,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	if updateAddTag != "" {
 		tags := parseTags(updateAddTag)
-		existing, _ := issueIndex.FindByNumber(issueNum)
-		allTags := append(existing.Labels, tags...)
+		allTags := labelsAfterAdd(issue, tags)
 		allTags = uniqueStrings(allTags)
 		_, err = client.ReplaceLabels(context.Background(), owner, repo, issueNum, allTags)
 		if err != nil {
@@ -123,17 +145,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	if updateRemoveTag != "" {
 		tags := parseTags(updateRemoveTag)
-		existing, _ := issueIndex.FindByNumber(issueNum)
-		var remaining []string
-		removeSet := make(map[string]bool)
-		for _, t := range tags {
-			removeSet[t] = true
-		}
-		for _, t := range existing.Labels {
-			if !removeSet[t] {
-				remaining = append(remaining, t)
-			}
-		}
+		remaining := labelsAfterRemove(issue, tags)
 		_, err = client.ReplaceLabels(context.Background(), owner, repo, issueNum, remaining)
 		if err != nil {
 			return fmt.Errorf("failed to remove labels: %w", err)
@@ -150,7 +162,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		issue.Labels = makeLabelSlice(tags)
 	}
 
-	entries, _ := issueIndex.Load()
+	entries, err := issueIndex.Load()
+	if err != nil {
+		return err
+	}
 	for i, entry := range entries {
 		if entry.IssueNumber == issueNum {
 			entries[i].FilePath = filePath
@@ -171,7 +186,9 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			break
 		}
 	}
-	issueIndex.Save(entries)
+	if err := issueIndex.Save(entries); err != nil {
+		return err
+	}
 
 	fmt.Printf("Updated issue #%d: %s\n", issue.GetNumber(), issue.GetTitle())
 	return nil
@@ -206,4 +223,44 @@ func makeLabelSlice(names []string) []*github.Label {
 		labels = append(labels, &github.Label{Name: github.String(name)})
 	}
 	return labels
+}
+
+func labelsAfterAdd(issue *github.Issue, add []string) []string {
+	labels := append(issueLabelNames(issue), add...)
+	return uniqueStrings(labels)
+}
+
+func labelsAfterRemove(issue *github.Issue, remove []string) []string {
+	removeSet := make(map[string]bool)
+	for _, label := range remove {
+		removeSet[label] = true
+	}
+
+	var remaining []string
+	for _, label := range issueLabelNames(issue) {
+		if !removeSet[label] {
+			remaining = append(remaining, label)
+		}
+	}
+	return remaining
+}
+
+func issueLabelNames(issue *github.Issue) []string {
+	labels := make([]string, 0, len(issue.Labels))
+	for _, label := range issue.Labels {
+		labels = append(labels, label.GetName())
+	}
+	return labels
+}
+
+func formatIssueEntries(entries []index.IssueEntry) string {
+	lines := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		line := fmt.Sprintf("- #%d %s", entry.IssueNumber, entry.Title)
+		if entry.FilePath != "" {
+			line += fmt.Sprintf(" (%s)", entry.FilePath)
+		}
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n")
 }
